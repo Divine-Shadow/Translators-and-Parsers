@@ -31,6 +31,8 @@ instance Show Entry where
 wrap2 f (x:y:xs) = (f x y):xs
 wrap2 f _ = error "Value stack underflow!"
 
+
+
 dlookup :: String -> Dictionary -> Entry
 dlookup word dict =
   case H.lookup word dict of
@@ -44,10 +46,31 @@ dinsert key val dict =
    case H.lookup key dict of
       Nothing -> H.insert key [val] dict
       Just x  -> H.insert key (val:x) dict
+ -- my functions     
+      -- my manipulators
+drop (x:xs) = xs
+drop _ = []
+
+dup (x:xs) = (x:x:xs)
+dup _ = error "Value stack underflow!"
+  
+swap (x:y:xs) = (y:x:xs)
+swap _ = error "Value stack underflow!"
+
+rot (x:f:d:xs) = (d:x:f:xs)
+rot _ = error "Value stack underflow!"
+
+-- my arithmatic
+
 
 -- Initial Dictionary
 
-dictionary = dinsert "+" (Prim $ wrap2 (+)) H.empty
+dictionary1 = dinsert "+" (Prim $ wrap2 (+)) H.empty
+dictionary2 = dinsert "rot" (Prim $ rot ) dictionary1
+dictionary3= dinsert "swap" (Prim $ swap ) dictionary2
+dictionary4= dinsert "dup" (Prim $ dup ) dictionary3
+dictionary5 = dinsert "-" (Prim $ wrap2 (-)) dictionary4
+dictionary  = dinsert "/" (Prim $ wrap2 (/)) dictionary5
 
 -- The Evaluator
 
