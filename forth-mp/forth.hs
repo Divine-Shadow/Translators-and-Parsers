@@ -47,33 +47,37 @@ dinsert key val dict =
       Nothing -> H.insert key [val] dict
       Just x  -> H.insert key (val:x) dict
  -- my functions     
-      -- my manipulators
+   -- my manipulators
 drop2 (x:xs) = xs
 drop2 _ = []
 
+eUnderflow = error "Value stack underflow!"
+
 dup (x:xs) = (x:x:xs)
-dup _ = error "Value stack underflow!"
+dup _ =  eUnderflow
   
 swap (x:y:xs) = (y:x:xs)
-swap _ = error "Value stack underflow!"
+swap _ = eUnderflow
 
 rot (x:f:d:xs) = (d:x:f:xs)
-rot _ = error "Value stack underflow!"
+rot _ = eUnderflow
 
+  -- my own if statement
 ifff a t f  
   | a==True = t
   | otherwise = f
                 
 
+  -- my comparison operators
 lessThan (a:b:c) = (ifff (b < a) (-1) 0):c
 greaterThan (a:b:c) = (ifff (b > a) (-1) 0):c
 equalto  (a:b:c) = (ifff (a == b) (-1) 0):c
--- my arithmatic
+
 
 
 -- Initial Dictionary
 
-dictionary0 = dinsert "+" (Prim $ wrap2 (+)) H.empty
+{-dictionary0 = dinsert "+" (Prim $ wrap2 (+)) H.empty
 dictionary1 = dinsert "drop" (Prim $ drop2) dictionary0
 dictionary2 = dinsert "rot" (Prim $ rot ) dictionary1
 dictionary3= dinsert "swap" (Prim $ swap ) dictionary2
@@ -83,7 +87,12 @@ dictionary6 = dinsert "<" (Prim $ lessThan) dictionary5
 dictionary7 = dinsert ">" (Prim $ greaterThan) dictionary6
 dictionary8 = dinsert "=" (Prim $ equalto) dictionary7
 dictionary9 = dinsert "*" (Prim $ wrap2 (*)) dictionary8
-dictionary  = dinsert "/" (Prim $ wrap2 div) dictionary9
+dictionary  = dinsert "/" (Prim $ wrap2 div) dictionary9 -}
+ -- A more functional approach to initializing the values
+initDict (q:qs) (a:as) dict =  dinsert q (Prim $ a) (initDict qs as dict) 
+initDict [] _ dict = dict
+
+dictionary = initDict [ "+", "drop", "rot", "swap" , "dup" , "-",  "<",  ">",  "=" ,  "*", "/"] [ wrap2 (+), drop2, rot, swap, dup, wrap2 (-), lessThan, greaterThan, equalto, wrap2 (*), wrap2 div] H.empty 
 
 -- The Evaluator
 
