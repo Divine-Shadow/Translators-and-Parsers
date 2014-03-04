@@ -28,7 +28,7 @@ instance Show Entry where
 
 -- Dictionary helpers
 
-wrap2 f (x:y:xs) = (f x y):xs
+wrap2 f (x:y:xs) = (f y x):xs
 wrap2 f _ = error "Value stack underflow!"
 
 
@@ -65,9 +65,8 @@ ifff a t f
   | otherwise = f
                 
 
-lessThan (a:b:c) = (ifff (a < b) (-1) 0):c
-greaterThan (a:b:c) = (ifff (a < b) 0 (-1)):c
-
+lessThan (a:b:c) = (ifff (b < a) (-1) 0):c
+greaterThan (a:b:c) = (ifff (b > a) (-1) 0):c
 equalto  (a:b:c) = (ifff (a == b) (-1) 0):c
 -- my arithmatic
 
@@ -99,13 +98,49 @@ eval words (istack, cstack, dict) =
                              eval xs (tail istack, cstack, dict) }
     Unknown ".S" -> do { putStrLn $ printstack istack;
                              eval xs (istack, cstack, dict)}
-    Unknown ":"  -> do { putStrLn "recieved command"; 
-                         eval (drop (findSplit xs 1) xs) (istack, cstack, dinsert (head xs) (Def (tail (take (findSplit xs 0) xs))) dict)}
+    Unknown ":"  -> eval (drop (findSplit xs 1) xs) (istack, cstack, dinsert (head xs) (Def (tail (take (findSplit xs 0) xs))) dict)
+    Unknown "if" -> eval whichBranch ((tail istack), remainingWords:cstack, dict)
                     
-    Def p        -> do { putStrLn "def starting"; eval  p (istack, xs: cstack, dict)}
-    Unknown _  -> do {putStrLn (show words); eval xs (istack, cstack, dict)}
+    Unknown "begin" -> eval loopContents (istack, loopContents:((drop againloc xs):cstack), dict) 
+    Unknown "again" -> eval (head cstack) (istack, cstack, dict)
+    Unknown "exit" -> eval (head (tail cstack)) (istack, (tail (tail cstack)), dict)
+    
+    Def p  ->  eval  p (istack, xs:cstack, dict)
+  
   where xs = tail words
+        whichBranch = ifff ((head istack) == -1) (trueBranch xs) (falseBranch xs)
+        remainingWords =  (drop (whereThen xs 1) xs)
+        loopContents = take againloc xs
+        againloc = whereAgain xs 1
 
+-- finds the else token, if a is 0 then the take value of the output will exclude the else statement, if a is 1 the drop value of the return will drop the else statement
+whereElse (d:ds) a
+  | d == "else" = a
+  | otherwise = whereElse ds (a+1)
+whereElse [] _ = -1
+
+whereAgain (d:ds) a
+  | d == "again" = a
+  | otherwise = whereAgain ds (a+1)
+whereAgain [] _ = -1
+
+-- finds the then token, if a is 0 then the take value of the output will exclude the then statement, if a is 1 the drop value of the return will drop the Then statement
+whereThen (d:ds) a
+  | d == "then" = a
+  | otherwise = whereThen ds (a+1)
+                
+-- returns the true branch of an expression
+trueBranch ds
+ | whereElse ds 0== -1 = take (whereThen ds 0) ds
+ | otherwise = take (whereElse ds 0) ds
+               
+-- retruns the false branch if it exists and nil if it doesn't
+falseBranch ds
+  | whereElse ds 0== -1 = []
+  | otherwise = take (whereThen newString 0) newString
+  where newString = drop (whereElse ds 1) ds                     
+                
+                
 findSplit (c:cs) a
   | c == ";" = a
   | otherwise = findSplit cs (a + 1)
