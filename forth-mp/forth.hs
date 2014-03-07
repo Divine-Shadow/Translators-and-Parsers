@@ -19,12 +19,14 @@ data Entry =
    | Def [String]
    | Num Integer
    | Unknown String
+   | Label [String]
 
 instance Show Entry where
   show (Prim f)    = "Prim"
   show (Def s)     = show s
   show (Num i)     = show i
   show (Unknown s) = "Unknown: " ++ s
+  show (Label s) = show s
 
 -- Dictionary helpers
 
@@ -102,8 +104,13 @@ eval words (istack, cstack, dict) =
     Unknown "then" -> eval (head cstack) (istack, (tail cstack), dict)                
     Unknown "begin" -> eval loopContents (istack, loopContents:((drop againloc xs):cstack), dict) 
     Unknown "again" -> eval (head cstack) (istack, cstack, dict)
-    Unknown "exit" -> eval (head ( tail (tail cstack))) (istack, (tail (tail cstack)), dict)
     
+    --
+    Unknown "goto" ->  eval (head destinationStack) (istack, (tail (tail cstack)), dict)
+    Unknown "label" -> eval (tail xs) (istack, ([(head xs)]:cstack), dinsert (head xs) (Label (tail xs)) dict) 
+    
+    Label p -> eval (tail words) (istack, cstack, dict)
+      
     Def p  ->  eval  p (istack, xs:cstack, dict)
   
   where xs = tail words
@@ -111,9 +118,17 @@ eval words (istack, cstack, dict) =
         remainingWords =  (drop (whereThen xs 1) xs)
         loopContents = take againloc xs
         againloc = whereAgain xs 1
+        destinationStack = labelFinder cstack (head xs)
 
 
 -- My functions part II
+        
+labelFinder (a:as) name
+  | a == [name] = (a:as)
+  | otherwise = labelFinder as name
+labelFinder [] name =  []
+        
+        
         
  -- Tokens
 
