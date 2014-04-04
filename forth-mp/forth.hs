@@ -20,6 +20,7 @@ data Entry =
    | Num Integer
    | Unknown String
    | Label [String]
+ 
 
 instance Show Entry where
   show (Prim f)    = "Prim"
@@ -100,18 +101,31 @@ eval words (istack, cstack, dict) =
     Unknown ".S" -> do { putStrLn $ printstack istack;
                              eval xs (istack, cstack, dict)}
     Unknown ":"  -> eval (drop (findSplit xs 1) xs) (istack, cstack, dinsert (head xs) (Def (tail (take (findSplit xs 0) xs))) dict)
-    Unknown "if" -> eval whichBranch ((tail istack), remainingWords:cstack, dict)
-    Unknown "then" -> eval (head cstack) (istack, (tail cstack), dict)                
+    --
+    Unknown "if" -> do 
+                     putStrLn $ show $ whereIf xs 1
+                     putStrLn $ show $ whereElse xs 1
+                     putStrLn $ show $ whereThen xs 1           
+                     eval whichBranch ((tail istack), remainingWords:cstack, dict)
+                     
+    Unknown "then" -> do  
+                       eval (head cstack) (istack, (tail cstack), dict)                
+    --
     Unknown "begin" -> eval loopContents (istack, loopContents:((drop againloc xs):cstack), dict) 
     Unknown "again" -> eval (head cstack) (istack, cstack, dict)
-    
     --
-    Unknown "goto" ->  eval (head destinationStack) (istack, (tail (tail cstack)), dict)
+    Unknown "Clear" -> eval [] ([], [], dict) 
+    --
+    Unknown "goto" ->  eval  (labelRetriever (dlookup (head (head destinationStack)) dict)) (istack, (tail destinationStack), dict)
     Unknown "label" -> eval (tail xs) (istack, ([(head xs)]:cstack), dinsert (head xs) (Label (tail xs)) dict) 
     
     Label p -> eval (tail words) (istack, cstack, dict)
       
     Def p  ->  eval  p (istack, xs:cstack, dict)
+    
+    Unknown p -> do  
+                putStrLn $ head words 
+                eval (head cstack) (istack, (tail cstack), dict)  
   
   where xs = tail words
         whichBranch = ifff ((head istack) == -1) (trueBranch xs) (falseBranch xs)
@@ -119,17 +133,22 @@ eval words (istack, cstack, dict) =
         loopContents = take againloc xs
         againloc = whereAgain xs 1
         destinationStack = labelFinder cstack (head xs)
+        
 
 
 -- My functions part II
+        
+
+  
+        
+        
         
 labelFinder (a:as) name
   | a == [name] = (a:as)
   | otherwise = labelFinder as name
 labelFinder [] name =  []
         
-        
-        
+labelRetriever (Label p) = p
  -- Tokens
 
   -- finds the  token 
@@ -142,9 +161,17 @@ tokenFinder [] _  _ = -1
 
   -- frequently used tokens
 whereAgain m a = tokenFinder m a "again"
-whereThen m a = tokenFinder m a "then"
-whereElse m a = tokenFinder m a "else"
+whereThen m a = metaTokenFinder m a "then" 0
+whereElse m a = metaTokenFinder m a "else" 0
+whereIf m a = metaTokenFinder m a "if" 0
 findSplit m a = tokenFinder m a ";"
+--
+metaTokenFinder (d:ds) loc token nestlevel
+  | ((d == token)&&(nestlevel==0)) = loc 
+  | (d == "if") = metaTokenFinder ds loc token (nestlevel + 1)
+  | (d == "then") = metaTokenFinder ds loc token (nestlevel - 1)
+  | otherwise = metaTokenFinder ds (loc + 1) token nestlevel
+metaTokenFinder [] _  token  _ = -1
 
  -- True False path identifiers
   -- returns the true branch of an expression
