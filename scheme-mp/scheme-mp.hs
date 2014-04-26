@@ -3,28 +3,27 @@ import Text.ParserCombinators.Parsec
 data Exp = IntExp Integer
          | SymExp String
          | SExp [Exp]
-         | DefVal [Exp]
          deriving (Show)
 
 data Val = IntVal Integer
          | SymVal String
          | PrimVal ([Val] -> Val)
          | Nil
+         | DefVal String Val
          | Closure [String] Exp  [(String,Val)] 
-         | FuncVal [Exp]
+         | Existential Bool
 
 
 run x = parseTest x
 
 -- Lexicals
---adigit::Text.Parsec.Prim.ParsecTString u Data.Functor.Identity.Identity Char
 number = ['0'..'9']
 adigit:: Parser Char
 adigit = oneOf number
 digits = many1 adigit
 
 symbol:: Parser Char
-symbolList = "!#$%&|*+-/:<=>?@^_~`\"-"
+symbolList = "!#$%&|*+-/:<=>?@^_~`\"-\'"
 symbol = oneOf symbolList
 symbols = many1 symbol
 
@@ -54,45 +53,78 @@ anExp = aSym <|> anInt <|> aform
 eval :: Exp -> [(String,Val)] -> Val
 eval (IntExp i) env = IntVal i
 eval (SExp []) env = Nil
-eval (SExp (s:sx)) env = case (eval s env) of 
-                         (PrimVal v) -> v (myMap eval env sx)
-                         (SymVal "define") ->  eval (DefVal sx) env
-eval (DefVal (x:xs)) env = repl (show x, xs):env
+eval (SExp expression) env = case expression of
+                              ([(SymExp "def"),thename,thevalue]) -> DefVal (showRaw thename) (eval thevalue env)
+                              ([(SymExp "define"),thename,(SExp theargs),thevalue]) -> DefVal (showRaw thename) (Closure (map showRaw theargs) thevalue env)
+                              ([(SymExp "lambda"),(SExp theargs),thevalue]) -> Closure (map showRaw theargs) thevalue env
+                              ([(SymExp "quote"), value]) -> (quotify value)
+                              ((SymExp "<"):x) -> megaCompareLift (<) (myMap eval env x)
+                              ((SymExp ">"):x) -> megaCompareLift (>) (myMap eval env x)
+                              ((SymExp "eq?"):x) -> megaCompareLift (==) (myMap eval env x)                 
+                              (x:xs) ->  case (eval x env) of
+                                          (PrimVal v) -> v (myMap eval env xs)
+                                          (Closure args expr environment) -> eval expr ((zip args (myMap eval env xs)) ++ environment)
+eval (SymExp (('\''):value)) env = (SymVal value)
 eval (SymExp s) env = specialLookup s env
 
 specialLookup::String -> [(String, Val)] -> Val
-specialLookup key = foldr (\(k,v) pastResult -> if key == k then v else pastResult) (SymVal "utter failure")
+specialLookup key = foldr (\(k,v) pastResult -> if key == k then v else pastResult) (SymVal "command lexed but not found")
 
 myMap f a [] = []
 myMap f a (x:xs) = (f x a):(myMap f a xs)
 
---primCheck (PrimVal v) args = v args
---primCheck (SymExp "define") (x:xs) = DefVal xs x
---primCheck _ arg = SymVal "epic fail"
--- Printer
-
 instance Show Val where
   show (IntVal i) = show i
-  show (SymVal s) = show s
+  show (SymVal s) = s
   show Nil = "nil"
-  
+  show (DefVal x xs) = show x  
+  show (Closure _ _ _ ) = "*Closure*"
+  show (Existential True) = "t"
+  show (Existential False) = "nil"
+showRaw (SymExp p) = p
+
+
+quotify::Exp->Val
+quotify (SymExp p) = (SymVal p)
 
 
 repl defs =
   do putStr "> "
      l <- getLine
-     case parse anExp "Expression" l of
-       Right exp -> putStr (show (eval exp defs))
-       Left pe   -> putStr (show pe)
+     
+     case parse anExp "Expression" l  of
+          Right exp -> let m = eval exp defs
+                       in 
+                          do
+                           putStr $ show m 
+                           putStrLn ""
+                           case m of
+                             (DefVal x xs) -> repl ((x,xs):defs)
+                             _ -> repl defs
+          Left pe   -> putStr (show pe)
      putStrLn ""
      repl defs
 --
 
---liftIntOp f a  =  IntVal (foldr f a )
+
 liftIntOp::(Integer->Integer->Integer) -> ([Val] -> Val)
 liftIntOp f list = IntVal (auxliftIntOp f list)
 auxliftIntOp f [a,b]= f (maths a) (maths b)
 auxliftIntOp f (x:xs) = f (maths x) (auxliftIntOp f xs) 
 maths (IntVal i) = i
+
+megaCompareLift f xs = Existential (myBoolFold (compareLift f) xs)
+
+--compareLift::Ord x => (x -> x -> Bool) -> Val -> Val -> Bool
+compareLift f (IntVal a) (IntVal b) = (f a b )
+--compareLift f (SymVal a) (SymVal b) = (f a b)
+
+myBoolFold operator (a:b:xs) = ifff (operator a b) (myBoolFold operator (b:xs)) False
+myBoolFold operator [x] = True
+
+ifff True a _ = a
+ifff False _ b = b
 --Initial Environments
 basic = [("+" , PrimVal (liftIntOp (+)))]
+level1 = [("+" , PrimVal (liftIntOp (+))),("t", Existential True) , ("nil", Existential False)]
+level2 = [("+" , PrimVal (liftIntOp (+))),("-" , PrimVal (liftIntOp (-))),("*" , PrimVal (liftIntOp (*))),("t", Existential True) , ("nil", Existential False)]
