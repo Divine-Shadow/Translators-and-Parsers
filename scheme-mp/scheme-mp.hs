@@ -39,6 +39,7 @@ instance Show Val where
   show (Cons a (Existential False)) = show a
   show (Cons a p@(Cons _ _)) = show a ++ " " ++ show p 
   show (Cons a p) = show a ++ " . " ++ show p 
+  
 showRaw (SymExp p) = p
 
 run x = parseTest x
@@ -70,11 +71,16 @@ aSym = do car <- symbol <|> letter
             
 aform::Parser Exp
 aform = do char '('
-           k <- many (aform <|> aSym <|> anInt)
+           k <- many (aquote <|> aform <|> aSym <|> anInt)
            char ')'
            spaces
            return $ SExp k 
-anExp = aSym <|> anInt <|> aform
+           
+aquote = do char '\''
+            k <- choice [aquote, aform , aSym , anInt]
+            return $ SExp[SymExp "quote" , k]
+            
+anExp = aquote <|>  aSym <|> anInt <|> aform
 -- Evaluator
 
 eval :: Exp -> [(String,Val)] -> Val
@@ -85,6 +91,7 @@ eval (SExp expression) env = case expression of
                               ([(SymExp "define"),thename,(SExp theargs),thevalue]) -> DefVal (showRaw thename) u where u = Closure (map showRaw theargs) thevalue ((showRaw thename, u):env)
                               ([(SymExp "lambda"),(SExp theargs),thevalue]) -> Closure (map showRaw theargs) thevalue env
                               ([(SymExp "quote"), value]) -> (quotify value)
+                              [(SymExp "quote")] -> Nil
                               ((SymExp "<"):x) -> megaCompareLift (<) (myMap eval env x)
                               ((SymExp ">"):x) -> megaCompareLift (>) (myMap eval env x)
                               ((SymExp "and"):x) -> megaboolLift (&&) (myMap eval env x)
@@ -95,13 +102,15 @@ eval (SExp expression) env = case expression of
                               ([(SymExp "cond"),x]) -> condEval x env
                               [(SymExp "car"),p] -> car (eval p env)
                               [(SymExp "cdr"),p] -> cdr (eval p env)
+                              ((SymExp "list"):x) -> listmaker (myMap eval env x)
                               ([SymExp "cons",x,y]) -> Cons (eval x env) (eval y env)
                               (x:xs) ->  case (eval x env) of
                                           (PrimVal v) -> v (myMap eval env xs)
                                           (Closure args expr environment) -> eval expr ((zip args (myMap eval env xs)) ++ environment)
-                                         
-                                          
-eval (SymExp (('\''):value)) env = eval (SExp [SymExp "quote", fromRight $parse anExp "quoted" value]) env
+                                          _ -> EpicFail (show expression)
+                              _ -> EpicFail (show expression)
+                              
+                                   
 eval (SymExp s) env = specialLookup s env
 fromRight (Right a) = a
 car (Cons a b) = a
@@ -113,6 +122,9 @@ cdr _ = EpicFail "cdr fail"
 --cdr [Cons a b, _] = b
 
 
+listmaker (x:xs) = (Cons x (listmaker xs))
+listmaker [] = Nil
+
 createLet (SExp [SExp []]) oldenv newage = newage 
 createLet (SExp [SExp [SymExp b, c],p]) oldenv newage = createLet (SExp [p] )  oldenv ((b, eval c oldenv):newage)  
 createLet (SExp [SymExp b, c]) oldenv newage = ((b, eval c oldenv):newage) 
@@ -120,7 +132,7 @@ createLet (SExp [SExp[SymExp b, c]]) oldenv newage = ((b, eval c oldenv):newage)
 createLet a _ newage  = trace (show a) newage
 
 specialLookup::String -> [(String, Val)] -> Val
-specialLookup key = foldr (\(k,v) pastResult -> if key == k then v else pastResult) (SymVal "command lexed but not found")
+specialLookup key = foldr (\(k,v) pastResult -> if key == k then v else pastResult) (EpicFail ("command lexed but not found" ++ (show key)))
 
 myMap f a [] = []
 myMap f a (x:xs) = (f x a):(myMap f a xs)
@@ -133,8 +145,16 @@ condEval (SExp []) env = Nil
 
 quotify::Exp->Val
 quotify (SymExp p) = (SymVal p)
-quotify (SExp (x:xs)) = (Cons (quotify x) (quotify (SExp xs)))
-quotify p = (SymVal (show p))
+quotify (IntExp i) = IntVal i
+quotify (SExp [s]) = SymVal (show (quotify s))
+quotify (SExp (x:xs)) = (SymVal ("(" ++ (show (quotify x)) ++" "++ ( (quotifyList xs)) ++ ")"))
+quotify (SExp []) = Nil
+
+quotifyList (x:xs) = (show (quotify x)) ++ " " ++ (quotifyList xs)
+quotifyList [] =""
+--quotify (SExp (x:xs)) = (Cons (quotify x) (quotify (SExp xs)))
+--quotify p = (SymVal (show p))
+
 repl defs =
   do putStr "> "
      l <- getLine
@@ -156,6 +176,7 @@ getBool::Val -> Bool
 getBool (Existential a) = a
 getBool (SymVal "t") = True
 getBool Nil = False
+getBool (SymVal "nil") = False
 getBool x = trace (show x) True
 
 
