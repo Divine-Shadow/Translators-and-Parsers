@@ -1,0 +1,26 @@
+Assignment Report for William R. Molchan
+Assignment: Exam 1
+Produced 2014-05-05 15:25
+Netid: wmolchan cwid: A20267098
+Course: cs440 (2014-01)  Section: 01
+
+  Num  QDB Max Score Notes 
+----- ---- --- ----- ----- 
+    1 100e   6     6       
+    2 100d   6     6       
+    3 1007   6     5       
+    4 100c   6     6       
+    5 10c0   4     4       
+    6 10c1   4     4       
+    7 10c2   4     4       
+    8 10c4   6     6       
+    9 10c3   6     6       
+   10 1115   6     4       
+   11 10b1   6     6       
+   12 116f   6     6       
+   13 10d0   6     5       
+   14 116a   6     6       
+   15 1097   6     6       
+   16 1043   6     6       
+----- ---- --- ----- ----- 
+Total       90    86       
