@@ -15,6 +15,7 @@ data Val = IntVal Integer
          | Closure [String] Exp  [(String,Val)] 
          | Existential Bool 
          | Cons Val Val
+         | EvalCall Val
          | EpicFail String
            
       
@@ -35,12 +36,15 @@ instance Show Val where
   show (Existential True) = "t"
   show (Existential False) = "nil"
   show (EpicFail s) = s
-  show (Cons a Nil) = show a
-  show (Cons a (Existential False)) = show a
-  show (Cons a p@(Cons _ _)) = show a ++ " " ++ show p 
-  show (Cons a p) = show a ++ " . " ++ show p 
-  
+  show p@(Cons a b) = "("++(showCons p)++")"
+   
 showRaw (SymExp p) = p
+showCons (Cons a Nil) = show a
+showCons (Cons a (Existential False)) = show a
+showCons (Cons a (SymVal "'nil")) = show a
+showCons (Cons a p@(Cons _ _)) = show a ++ " " ++ showCons p 
+showCons (Cons a p) = show a ++ " . " ++ show p 
+
 
 run x = parseTest x
 
@@ -104,6 +108,7 @@ eval (SExp expression) env = case expression of
                               [(SymExp "cdr"),p] -> cdr (eval p env)
                               ((SymExp "list"):x) -> listmaker (myMap eval env x)
                               ([SymExp "cons",x,y]) -> Cons (eval x env) (eval y env)
+                              [SymExp "eval",x]  -> EvalCall (eval x env)
                               (x:xs) ->  case (eval x env) of
                                           (PrimVal v) -> v (myMap eval env xs)
                                           (Closure args expr environment) -> eval expr ((zip args (myMap eval env xs)) ++ environment)
@@ -112,8 +117,12 @@ eval (SExp expression) env = case expression of
                               
                                    
 eval (SymExp s) env = specialLookup s env
+
+
+
 fromRight (Right a) = a
 car (Cons a b) = a
+--car (SExp (x:xs)) = x
 car a = trace (show a)( EpicFail (show a))
 --car SExp[Cons a b, _ ] = a
 --car i = trace (show i) EpicFail "car failed"
@@ -141,24 +150,28 @@ condEval (SExp (x:xs:ss)) env = ifff (getBool (eval x env)) (eval xs env) (condE
 condEval (SExp []) env = Nil
   
 
+ 
 
 
 quotify::Exp->Val
 quotify (SymExp p) = (SymVal p)
 quotify (IntExp i) = IntVal i
-quotify (SExp [s]) = SymVal (show (quotify s))
-quotify (SExp (x:xs)) = (SymVal ("(" ++ (show (quotify x)) ++" "++ ( (quotifyList xs)) ++ ")"))
-quotify (SExp []) = Nil
+quotify (SExp (x:xs)) = Cons (quotify x) (quotifyList xs)
 
-quotifyList (x:xs) = (show (quotify x)) ++ " " ++ (quotifyList xs)
-quotifyList [] =""
---quotify (SExp (x:xs)) = (Cons (quotify x) (quotify (SExp xs)))
---quotify p = (SymVal (show p))
+
+quotifyList (x:xs) = Cons (quotify x) (quotifyList xs)
+quotifyList [] = Nil
+
+--evalRun (SExp [SymVal "quote", x]) = EvalCall x
+--evalRun (Cons a b) env = Cons (evalRun a env) (evalRun b env)
+--evalRun (SymVal a) env = eval (SymExp a) env
+--evalRun p@(IntVal a) env = p
+
 
 repl defs =
   do putStr "> "
      l <- getLine
-     
+    -- evalLoop defs l
      case parse anExp "Expression" l  of
           Right exp -> let m = eval exp defs
                        in 
@@ -167,10 +180,27 @@ repl defs =
                            putStrLn ""
                            case m of
                              (DefVal x xs) -> repl ((x,xs):defs)
+                             (EvalCall x) -> evalLoop defs (show x)
                              _ -> repl defs
           Left pe   -> putStr (show pe)
+     
      putStrLn ""
      repl defs
+     
+evalLoop defs l =   
+     case parse anExp "Expression" l  of
+          Right exp -> let m = eval exp defs
+                       in 
+                          do
+                           putStr $ show m 
+                           putStrLn ""
+                           case m of
+                             (DefVal x xs) -> repl ((x,xs):defs)
+                             (EvalCall x) -> evalLoop defs (show x)
+                             _ -> repl defs
+          Left pe   -> putStr (show pe)
+     
+     
 --
 getBool::Val -> Bool
 getBool (Existential a) = a
