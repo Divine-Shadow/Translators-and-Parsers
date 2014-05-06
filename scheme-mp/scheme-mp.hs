@@ -42,6 +42,7 @@ showRaw (SymExp p) = p
 showCons (Cons a Nil) = show a
 showCons (Cons a (Existential False)) = show a
 showCons (Cons a (SymVal "'nil")) = show a
+showCons (Cons a (SymVal "nil")) = show a
 showCons (Cons a p@(Cons _ _)) = show a ++ " " ++ showCons p 
 showCons (Cons a p) = show a ++ " . " ++ show p 
 
@@ -240,3 +241,4 @@ ifff False _ b = b
 basic = [("+" , PrimVal (liftIntOp (+)))]
 level1 = [("+" , PrimVal (liftIntOp (+))),("t", Existential True) , ("nil", Existential False)]
 level2 = [("+" , PrimVal (liftIntOp (+))),("-" , PrimVal (liftIntOp (-))),("*" , PrimVal (liftIntOp (*))),("t", Existential True) , ("nil", Existential False)]
+runtime=level2

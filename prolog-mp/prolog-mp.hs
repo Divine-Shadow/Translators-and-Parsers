@@ -144,19 +144,58 @@ fromJust (Just i) = i
 unify :: Pattern -> Pattern -> Bindings -> Bindings
 unify _ _ Fail              = Fail
 
+unify x@(Var v) y         b = unifyVariable x y b
+unify y         x@(Var v) b = unifyVariable x y b
+
+unify (Funct a aa) (Funct c cc) b =
+  if a == c
+    then unifyList aa cc b
+    else Fail
+
+unifyList :: [Pattern] -> [Pattern] -> Bindings -> Bindings
 unifyList [] [] bindings = bindings
+unifyList (x:xx) (y:yy) bindings = unifyList xx yy $ unify x y bindings
+unifyList [] _ _ = Fail
+unifyList _ [] _ = Fail
+
+unifyVariable :: Pattern -> Pattern -> Bindings -> Bindings
+unifyVariable x@(Var xx) y@(Var yy) bindings =
+  if hasBinding xx bindings
+    then unify y (lookupBindings xx bindings) bindings
+    else if hasBinding yy bindings
+      then unify x (lookupBindings yy bindings) bindings
+      else extendBindings xx y $ extendBindings yy x bindings
 
 unifyVariable x@(Var v) y bindings =
+  if hasBinding v bindings
+    then let j = lookupBindings v bindings
+      in case j of
+        (Var a) -> unify j y $ extendBindings v y bindings
+        _       ->  if j == y
+                      then bindings
+                      else unify j y bindings
+    else extendBindings v y bindings
 
 -- Part 2 : Rename variables
 
 
 proveAll :: [Pattern] -> Database -> Bindings -> [Bindings]
-proveAll = undefined
+
+proveAll [] defs b = [b]
+proveAll p defs b =
+  foldl (\x y -> concatMap (\z -> prove y defs z) x) [b] p
 
 prove :: Pattern -> Database -> Bindings -> [Bindings]
 
-prove = undefined
+prove p@(Funct f v) defs b =
+  concatMap (\a -> proveClause p defs a b) $ lookupClause f defs 
+
+
+proveClause :: Pattern -> Database -> [Pattern] -> Bindings -> [Bindings]
+proveClause p@(Funct f v) defs clause b = 
+  case unify p (head clause) b of 
+    Fail  -> [Fail]
+    a     -> proveAll (tail clause) defs a 
 
 -- Print relevant bindings
 
@@ -183,8 +222,10 @@ replAux defs =
                                    putStrLn $ concatMap (showBindings q) res
                                    replAux defs
          Implies (Obj "bye") _ -> putStrLn "Bye."
-         Implies (Obj "listing") _   -> putStrLn $ show defs
-         Implies (Obj p)     _       -> putStrLn $ show p
+         Implies (Obj "listing") _   -> do putStrLn $ show defs
+                                           replAux defs
+         Implies (Obj p)     _       -> do putStrLn $ show p
+                                           replAux defs
          Implies f@(Funct p args) xx
              -> do putStrLn $ (show f) ++ " :- " ++
                        (concat (L.intersperse ", " (map show xx)))
