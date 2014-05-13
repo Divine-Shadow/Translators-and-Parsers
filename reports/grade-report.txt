@@ -1,17 +1,17 @@
 Grade Report for William R. Molchan
-Produced 2014-05-09 15:56
+Produced 2014-05-13 17:47
 Netid: wmolchan cwid: A20267098
 Course: cs440 (2014-01)  Section: 01
 
             Assignment   Status Raw Max    Norm Weight  Points 
 ---------------------- -------- --- --- ------- ------ ------- 
-                Exam 1   Graded  86  90  95.56% 0.3750 35.8333 
-                Exam 2   Graded  79  90  87.78% 0.3750 32.9167 
-            Final Exam  Pending n/a 100     n/a 0.0000  0.0000 
-          Recursion MP   Graded 100 100 100.00% 0.0500  5.0000 
-              Forth MP   Graded 100 100 100.00% 0.0500  5.0000 
-             Scheme MP   Graded 100 100 100.00% 0.0500  5.0000 
-             Prolog MP  Pending n/a 100     n/a 0.0000  0.0000 
+                Exam 1   Graded  86  90  95.56% 0.2500 23.8889 
+                Exam 2 Replaced n/a  90  94.44% 0.2500 23.6111 
+            Final Exam   Graded 170 180  94.44% 0.2500 23.6111 
+          Recursion MP   Graded 100 100 100.00% 0.0375  3.7500 
+              Forth MP   Graded 100 100 100.00% 0.0375  3.7500 
+             Scheme MP   Graded 100 100 100.00% 0.0375  3.7500 
+             Prolog MP   Graded 100 100 100.00% 0.0375  3.7500 
  Pre Course Assessment   Graded   1   1 100.00% 0.0125  1.2500 
     Recursion Activity   Graded   1   1 100.00% 0.0125  1.2500 
           BST Activity  Missing   0   1   0.00% 0.0125  0.0000 
@@ -22,4 +22,4 @@ Counter Monad Activity   Graded   1   1 100.00% 0.0125  1.2500
            Running Sum Canceled n/a   1     n/a 0.0000  0.0000 
             LL Parsing   Graded   1   1 100.00% 0.0125  1.2500 
 ---------------------- -------- --- --- ------- ------ ------- 
-                 Total                   91.25% 1.0000 91.2500 
+                 Total                   93.61% 1.0000 93.6111 
